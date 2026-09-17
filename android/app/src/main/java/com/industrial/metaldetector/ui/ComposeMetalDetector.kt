@@ -11,9 +11,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -29,18 +33,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlin.math.abs
 
-// Industrial Hardware Palette (Recipe 3)
+// Industrial Hardware Palette
 val BgGraphite = Color(0xFF0A0B0E)
 val CardChassis = Color(0xFF15171D)
 val BorderSteel = Color(0xFF2A2D35)
 val BorderSubtle = Color(0xFF3A3E4A)
 val AlertCrimson = Color(0xFFFF3E3E)
 val PhosphorGreen = Color(0xFF00FF41)
+val AndroidGreen = Color(0xFF3DDC84)
 val WarningAmber = Color(0xFFFFA500)
 val TextPrimary = Color(0xFFFFFFFF)
 val TextSecondary = Color(0xFFE0E0E0)
 val TextMuted = Color(0xFF6A6E7A)
 
+enum class AndroidNavDestination(val label: String) {
+    DETECTOR("Detector"),
+    STUD_FINDER("Stud Finder"),
+    SCOPE("Flux Scope"),
+    SETTINGS("Settings")
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ComposeMetalDetectorScreen(
     currentFlux: Float,
@@ -61,290 +74,397 @@ fun ComposeMetalDetectorScreen(
     onResetPeak: () -> Unit,
     onChangeThreshold: (Float) -> Unit
 ) {
+    var selectedTab by remember { mutableStateOf(AndroidNavDestination.DETECTOR) }
     val isAlert = currentFlux >= threshold
+
     val animatedBgColor by animateColorAsState(
-        targetValue = if (isAlert) Color(0xFF180A0C) else BgGraphite,
+        targetValue = if (isAlert && isSensorActive) Color(0xFF180A0C) else BgGraphite,
         label = "bgColor"
     )
 
     // Dynamic descriptive status indicator per user requirement 2 & 3
     val statusText = when {
-        isAlert && isStudFinderMode -> "STUD / METAL DETECTED!"
+        !isSensorActive -> "LIFECYCLE: PAUSED // BATTERY SAVER"
+        isAlert && selectedTab == AndroidNavDestination.STUD_FINDER -> "STUD / METAL DETECTED!"
         isAlert -> "METAL DETECTED!"
-        currentFlux in 40f..50f -> "NORMAL BACKGROUND"
-        currentFlux > 50f -> if (isStudFinderMode) "STUD IN PROXIMITY" else "ELEVATED FLUX"
+        currentFlux in 40f..50f -> "NORMAL BACKGROUND (40–50 µT)"
+        currentFlux > 50f -> if (selectedTab == AndroidNavDestination.STUD_FINDER) "STUD IN PROXIMITY" else "ELEVATED FLUX"
         else -> "LOW BACKGROUND FIELD"
     }
 
     val statusColor = when {
+        !isSensorActive -> WarningAmber
         isAlert -> AlertCrimson
         currentFlux in 40f..50f -> PhosphorGreen
         currentFlux > 50f -> WarningAmber
         else -> TextMuted
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(animatedBgColor)
-            .statusBarsPadding()
-            .navigationBarsPadding()
-            .verticalScroll(rememberScrollState())
-            .padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        // App Header: Industrial Monospace Branding
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "MAG-TECH 4000",
-                    color = TextPrimary,
-                    fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
+    Scaffold(
+        containerColor = animatedBgColor,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            text = when (selectedTab) {
+                                AndroidNavDestination.DETECTOR -> "Metal Detector"
+                                AndroidNavDestination.STUD_FINDER -> "Stud Finder"
+                                AndroidNavDestination.SCOPE -> "Flux Scope"
+                                AndroidNavDestination.SETTINGS -> "Settings & Hardware"
+                            },
+                            color = TextPrimary,
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = if (isAlert) "ANOMALY: > ${threshold.toInt()} µT" else "Sensor.TYPE_MAGNETIC_FIELD",
+                            color = if (isAlert) AlertCrimson else TextMuted,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                },
+                actions = {
+                    if (selectedTab != AndroidNavDestination.SETTINGS) {
+                        Button(
+                            onClick = onTare,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (tareOffset > 0) WarningAmber.copy(alpha = 0.2f) else CardChassis
+                            ),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, if (tareOffset > 0) WarningAmber else BorderSteel),
+                            shape = RoundedCornerShape(8.dp),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                            modifier = Modifier.padding(end = 8.dp)
+                        ) {
+                            Text(
+                                text = if (tareOffset > 0) "TARED" else "TARE",
+                                color = if (tareOffset > 0) WarningAmber else TextSecondary,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color(0xFF12141A)
                 )
-                Text(
-                    text = if (isStudFinderMode) "MAGNETIC STUD FINDER // V4.2" else "METAL DETECTOR UTILITY // V4.2",
-                    color = TextMuted,
-                    fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace,
-                    letterSpacing = 1.sp
-                )
-            }
-
-            Box(
-                modifier = Modifier
-                    .background(
-                        color = if (isSensorActive) PhosphorGreen.copy(alpha = 0.15f) else AlertCrimson.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(4.dp)
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = if (isSensorActive) PhosphorGreen else AlertCrimson,
-                        shape = RoundedCornerShape(4.dp)
-                    )
-                    .padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        },
+        bottomBar = {
+            NavigationBar(
+                containerColor = Color(0xFF12141A),
+                contentColor = TextPrimary,
+                tonalElevation = 8.dp
             ) {
-                Text(
-                    text = if (isSensorActive) "SENSOR LIVE" else "PAUSED (OFFLINE)",
-                    color = if (isSensorActive) PhosphorGreen else AlertCrimson,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        // Mode Switcher: Metal Detector vs Magnetic Stud Finder
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 10.dp)
-                .background(CardChassis, RoundedCornerShape(8.dp))
-                .border(1.dp, BorderSteel, RoundedCornerShape(8.dp))
-                .padding(3.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            Button(
-                onClick = { if (isStudFinderMode) onToggleMode() },
-                modifier = Modifier.weight(1f).height(32.dp),
-                shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (!isStudFinderMode) BorderSteel else Color.Transparent
-                ),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Text(
-                    text = "METAL DETECTOR",
-                    color = if (!isStudFinderMode) TextPrimary else TextMuted,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-
-            Button(
-                onClick = { if (!isStudFinderMode) onToggleMode() },
-                modifier = Modifier.weight(1f).height(32.dp),
-                shape = RoundedCornerShape(6.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (isStudFinderMode) BorderSteel else Color.Transparent
-                ),
-                contentPadding = PaddingValues(0.dp)
-            ) {
-                Text(
-                    text = "STUD FINDER",
-                    color = if (isStudFinderMode) TextPrimary else TextMuted,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold
-                )
-            }
-        }
-
-        // Top Alert Banner (turns red on > 70 µT)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 8.dp)
-                .background(
-                    if (isAlert) AlertCrimson.copy(alpha = 0.2f) else CardChassis,
-                    RoundedCornerShape(8.dp)
-                )
-                .border(
-                    1.dp,
-                    if (isAlert) AlertCrimson else BorderSteel,
-                    RoundedCornerShape(8.dp)
-                )
-                .padding(horizontal = 12.dp, vertical = 8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = statusText,
-                    color = statusColor,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-                Text(
-                    text = if (isAlert) "ALERT ACTIVE" else "THRESHOLD: ${threshold.toInt()} µT",
-                    color = if (isAlert) AlertCrimson else TextMuted,
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
-        }
-
-        // Core Requirement 1: Center Industrial Circular Dial Gauge
-        ComposeIndustrialGauge(
-            flux = currentFlux,
-            threshold = threshold,
-            isAlert = isAlert,
-            statusText = statusText,
-            statusColor = statusColor,
-            modifier = Modifier
-                .size(310.dp)
-                .padding(vertical = 4.dp)
-        )
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Vector Breakdown & Peak Readout
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(CardChassis, RoundedCornerShape(12.dp))
-                .border(1.dp, if (isAlert) AlertCrimson else BorderSteel, RoundedCornerShape(12.dp))
-                .padding(14.dp)
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Text(
-                        text = "3-AXIS MAGNETOMETER (µT)",
-                        color = TextMuted,
-                        fontSize = 10.sp,
-                        fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = if (isAlert) "ANOMALY DETECTED" else "AMBIENT FIELD (40-50µT)",
-                        color = if (isAlert) AlertCrimson else PhosphorGreen,
-                        fontSize = 9.sp,
-                        fontFamily = FontFamily.Monospace
+                AndroidNavDestination.values().forEach { destination ->
+                    val isSelected = selectedTab == destination
+                    NavigationBarItem(
+                        selected = isSelected,
+                        onClick = { selectedTab = destination },
+                        label = {
+                            Text(
+                                text = destination.label,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                            )
+                        },
+                        icon = {
+                            Box(
+                                modifier = Modifier
+                                    .size(12.dp)
+                                    .background(
+                                        color = if (isSelected) (if (isAlert) AlertCrimson else AndroidGreen) else TextMuted,
+                                        shape = CircleShape
+                                    )
+                            )
+                        },
+                        colors = NavigationBarItemDefaults.colors(
+                            selectedIconColor = Color.Black,
+                            selectedTextColor = if (isAlert) AlertCrimson else AndroidGreen,
+                            unselectedTextColor = TextMuted,
+                            indicatorColor = if (isAlert) AlertCrimson.copy(alpha = 0.3f) else AndroidGreen.copy(alpha = 0.2f)
+                        )
                     )
                 }
-
-                VectorBar(label = "X-AXIS (Bx)", value = rawX, threshold = threshold)
-                VectorBar(label = "Y-AXIS (By)", value = rawY, threshold = threshold)
-                VectorBar(label = "Z-AXIS (Bz)", value = rawZ, threshold = threshold)
-
-                Divider(color = BorderSteel, thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Peak: ${"%.1f".format(peakFlux)} µT",
-                        color = TextPrimary,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                    Button(
-                        onClick = onResetPeak,
-                        colors = ButtonDefaults.buttonColors(containerColor = BorderSteel),
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                        shape = RoundedCornerShape(4.dp)
+            }
+        }
+    ) { paddingValues ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            when (selectedTab) {
+                AndroidNavDestination.DETECTOR -> {
+                    // Status placard
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 8.dp)
+                            .background(
+                                if (isAlert) AlertCrimson.copy(alpha = 0.2f) else CardChassis,
+                                RoundedCornerShape(8.dp)
+                            )
+                            .border(
+                                1.dp,
+                                if (isAlert) AlertCrimson else BorderSteel,
+                                RoundedCornerShape(8.dp)
+                            )
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Text("RESET PEAK", fontSize = 9.sp, color = TextSecondary, fontFamily = FontFamily.Monospace)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = statusText,
+                                color = statusColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Text(
+                                text = if (isAlert) "ALERT ACTIVE" else "THRESHOLD: ${threshold.toInt()} µT",
+                                color = if (isAlert) AlertCrimson else TextMuted,
+                                fontSize = 10.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    // Circular Industrial Gauge (Core Requirement 1)
+                    ComposeIndustrialGauge(
+                        flux = currentFlux,
+                        threshold = threshold,
+                        isAlert = isAlert,
+                        statusText = statusText,
+                        statusColor = statusColor,
+                        modifier = Modifier
+                            .size(300.dp)
+                            .padding(vertical = 4.dp)
+                    )
+
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    // Vector Breakdown
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(CardChassis, RoundedCornerShape(12.dp))
+                            .border(1.dp, if (isAlert) AlertCrimson else BorderSteel, RoundedCornerShape(12.dp))
+                            .padding(14.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = "ORTHOGONAL VECTORS", color = TextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                                Text(text = "PEAK: ${"%.1f".format(peakFlux)} µT", color = TextPrimary, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                            }
+
+                            VectorChannelRow(label = "X-AXIS (PITCH)", value = rawX, threshold = threshold)
+                            VectorChannelRow(label = "Y-AXIS (ROLL)", value = rawY, threshold = threshold)
+                            VectorChannelRow(label = "Z-AXIS (AZIMUTH)", value = rawZ, threshold = threshold)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    // Quick Tare & Reset Controls
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = onTare,
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = CardChassis),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderSteel)
+                        ) {
+                            Text(
+                                text = if (tareOffset > 0f) "CLEAR TARE" else "TARE BASELINE",
+                                color = if (tareOffset > 0f) WarningAmber else TextPrimary,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+
+                        Button(
+                            onClick = onResetPeak,
+                            modifier = Modifier.weight(1f).height(44.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = CardChassis),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, BorderSteel)
+                        ) {
+                            Text(text = "RESET PEAK", color = TextMuted, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
+
+                AndroidNavDestination.STUD_FINDER -> {
+                    // Stud Finder Dedicated Screen
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(CardChassis, RoundedCornerShape(12.dp))
+                            .border(1.dp, if (isAlert) AlertCrimson else BorderSteel, RoundedCornerShape(12.dp))
+                            .padding(16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(text = "WALL STUD SCANNER", color = AndroidGreen, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(16.dp))
+
+                            Box(
+                                modifier = Modifier
+                                    .size(200.dp)
+                                    .background(BgGraphite, CircleShape)
+                                    .border(2.dp, if (isAlert) AlertCrimson else AndroidGreen, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        text = "${"%.1f".format(currentFlux)}",
+                                        color = if (isAlert) AlertCrimson else TextPrimary,
+                                        fontSize = 36.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                    Text(text = "µT DENSITY", color = TextMuted, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = if (isAlert) "STUD DETECTED" else "NORMAL WALL",
+                                        color = if (isAlert) AlertCrimson else PhosphorGreen,
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = onTare,
+                                modifier = Modifier.fillMaxWidth().height(44.dp),
+                                shape = RoundedCornerShape(8.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = CardChassis),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, BorderSteel)
+                            ) {
+                                Text(text = "CALIBRATE WALL BASELINE", color = AndroidGreen, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                            }
+                        }
+                    }
+                }
+
+                AndroidNavDestination.SCOPE -> {
+                    // Flux Scope Telemetry Screen
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(CardChassis, RoundedCornerShape(12.dp))
+                            .border(1.dp, BorderSteel, RoundedCornerShape(12.dp))
+                            .padding(16.dp)
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(text = "REAL-TIME FLUX TELEMETRY", color = AndroidGreen, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                            Text(text = "Ambient Earth Field Band: 40.0 – 50.0 µT", color = PhosphorGreen, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                            Text(text = "Detection Alert Threshold: ${threshold.toInt()} µT", color = AlertCrimson, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                            Text(text = "Current Value: ${"%.1f".format(currentFlux)} µT", color = TextPrimary, fontSize = 14.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                            Text(text = "Peak Recorded: ${"%.1f".format(peakFlux)} µT", color = TextSecondary, fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
+
+                AndroidNavDestination.SETTINGS -> {
+                    // Settings Screen
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(CardChassis, RoundedCornerShape(12.dp))
+                                .border(1.dp, BorderSteel, RoundedCornerShape(12.dp))
+                                .padding(14.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Text(text = "ALERT THRESHOLD: ${threshold.toInt()} µT", color = AlertCrimson, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                Slider(
+                                    value = threshold,
+                                    onValueChange = onChangeThreshold,
+                                    valueRange = 50f..120f,
+                                    colors = SliderDefaults.colors(
+                                        thumbColor = AlertCrimson,
+                                        activeTrackColor = AlertCrimson
+                                    )
+                                )
+                                Text(text = "Ambient background is typically 40–50 µT.", color = TextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                            }
+                        }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(CardChassis, RoundedCornerShape(12.dp))
+                                .border(1.dp, BorderSteel, RoundedCornerShape(12.dp))
+                                .padding(14.dp)
+                        ) {
+                            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                                Text(text = "FEEDBACK CHANNELS", color = TextPrimary, fontSize = 12.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "Audible Alert (ToneGenerator)", color = TextSecondary, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                    Switch(checked = isAudioEnabled, onCheckedChange = { onToggleAudio() })
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(text = "Haptic Vibration (Vibrator)", color = TextSecondary, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+                                    Switch(checked = isHapticsEnabled, onCheckedChange = { onToggleHaptics() })
+                                }
+                            }
+                        }
                     }
                 }
             }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Hardware Controls: Audio, Haptics, Tare Zeroing
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            ControlToggleButton(
-                label = "AUDIO",
-                subLabel = if (isAudioEnabled) "TONE ON" else "MUTED",
-                isActive = isAudioEnabled,
-                onClick = onToggleAudio,
-                modifier = Modifier.weight(1f)
-            )
-            ControlToggleButton(
-                label = "HAPTIC",
-                subLabel = if (isHapticsEnabled) "VIBRATE ON" else "OFF",
-                isActive = isHapticsEnabled,
-                onClick = onToggleHaptics,
-                modifier = Modifier.weight(1f)
-            )
-            ControlToggleButton(
-                label = "TARE / ZERO",
-                subLabel = if (tareOffset > 0f) "ZEROED" else "CALIBRATE",
-                isActive = tareOffset > 0f,
-                onClick = onTare,
-                modifier = Modifier.weight(1f)
-            )
         }
     }
 }
 
 @Composable
-fun VectorBar(label: String, value: Float, threshold: Float) {
-    val pct = (abs(value) / 100f).coerceIn(0.04f, 1f)
-    Column {
+fun VectorChannelRow(label: String, value: Float, threshold: Float) {
+    val pct = (abs(value) / 120f).coerceIn(0f, 1f)
+    Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(text = label, color = TextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
             Text(
-                text = "${if (value >= 0) "+" else ""}${"%.1f".format(value)} µT",
+                text = "${if (value > 0) "+" else ""}${"%.1f".format(value)} µT",
                 color = TextSecondary,
                 fontSize = 10.sp,
-                fontFamily = FontFamily.Monospace,
-                fontWeight = FontWeight.Bold
+                fontFamily = FontFamily.Monospace
             )
         }
+        Spacer(modifier = Modifier.height(3.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -355,33 +475,8 @@ fun VectorBar(label: String, value: Float, threshold: Float) {
                 modifier = Modifier
                     .fillMaxWidth(pct)
                     .fillMaxHeight()
-                    .background(if (abs(value) >= threshold * 0.7f) AlertCrimson else TextPrimary.copy(alpha = 0.3f), CircleShape)
+                    .background(if (abs(value) >= threshold * 0.7f) AlertCrimson else AndroidGreen, CircleShape)
             )
-        }
-    }
-}
-
-@Composable
-fun ControlToggleButton(
-    label: String,
-    subLabel: String,
-    isActive: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Button(
-        onClick = onClick,
-        modifier = modifier.height(62.dp),
-        shape = RoundedCornerShape(8.dp),
-        colors = ButtonDefaults.buttonColors(
-            containerColor = if (isActive) BorderSteel else CardChassis
-        ),
-        border = androidx.compose.foundation.BorderStroke(1.dp, if (isActive) BorderSubtle else BorderSteel),
-        contentPadding = PaddingValues(4.dp)
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(text = label, color = TextPrimary, fontSize = 11.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
-            Text(text = subLabel, color = if (isActive) PhosphorGreen else TextMuted, fontSize = 9.sp, fontFamily = FontFamily.Monospace)
         }
     }
 }
@@ -395,7 +490,6 @@ fun ComposeIndustrialGauge(
     statusColor: Color,
     modifier: Modifier = Modifier
 ) {
-    // 0 to 200 µT mapped to -135 to +135 degrees (270 degree span)
     val clamped = flux.coerceIn(0f, 200f)
     val targetAngle = -135f + (clamped / 200f) * 270f
     val animatedAngle by animateFloatAsState(
@@ -409,7 +503,7 @@ fun ComposeIndustrialGauge(
             val center = Offset(size.width / 2f, size.height / 2f)
             val radius = size.minDimension / 2f - 16.dp.toPx()
 
-            // Outer industrial dial chassis
+            // Outer dial chassis
             drawCircle(
                 color = CardChassis,
                 radius = radius + 12.dp.toPx(),
@@ -422,7 +516,7 @@ fun ComposeIndustrialGauge(
                 style = Stroke(width = 4.dp.toPx())
             )
 
-            // Base track (-135 to +135 degrees = 270 deg sweep)
+            // Base track (270 deg sweep)
             val startAngle = 135f
             drawArc(
                 color = BorderSteel,
@@ -434,7 +528,7 @@ fun ComposeIndustrialGauge(
                 style = Stroke(width = 4.dp.toPx(), cap = StrokeCap.Round)
             )
 
-            // Normal Ambient Background Arc (40 to 50 µT)
+            // Normal Ambient Arc (40 to 50 µT)
             val ambientStart = startAngle + (40f / 200f) * 270f
             val ambientSweep = (10f / 200f) * 270f
             drawArc(
@@ -451,92 +545,49 @@ fun ComposeIndustrialGauge(
             val dangerStart = startAngle + (threshold / 200f) * 270f
             val dangerSweep = ((200f - threshold) / 200f) * 270f
             drawArc(
-                color = AlertCrimson,
+                color = AlertCrimson.copy(alpha = 0.8f),
                 startAngle = dangerStart,
                 sweepAngle = dangerSweep,
                 useCenter = false,
                 topLeft = Offset(center.x - radius, center.y - radius),
                 size = Size(radius * 2, radius * 2),
-                style = Stroke(width = 6.dp.toPx(), cap = StrokeCap.Round)
+                style = Stroke(width = 6.dp.toPx())
             )
 
-            // Rotating Needle
+            // Needle Pointer
             rotate(degrees = animatedAngle, pivot = center) {
-                // Needle blade
                 drawLine(
-                    color = if (isAlert) AlertCrimson else TextPrimary,
-                    start = Offset(center.x, center.y + 20.dp.toPx()),
-                    end = Offset(center.x, center.y - radius + 6.dp.toPx()),
-                    strokeWidth = 3.5.dp.toPx(),
+                    color = if (isAlert) AlertCrimson else AndroidGreen,
+                    start = center,
+                    end = Offset(center.x, center.y - radius + 10.dp.toPx()),
+                    strokeWidth = 3.dp.toPx(),
                     cap = StrokeCap.Round
                 )
-                // Red indicator tip
-                drawLine(
-                    color = AlertCrimson,
-                    start = Offset(center.x, center.y - radius + 16.dp.toPx()),
-                    end = Offset(center.x, center.y - radius + 6.dp.toPx()),
-                    strokeWidth = 4.dp.toPx(),
-                    cap = StrokeCap.Round
-                )
-                // Center hub
-                drawCircle(color = BorderSteel, radius = 12.dp.toPx(), center = center)
-                drawCircle(color = if (isAlert) AlertCrimson else TextSecondary, radius = 5.dp.toPx(), center = center)
             }
+
+            // Pivot Center Knob
+            drawCircle(color = if (isAlert) AlertCrimson else AndroidGreen, radius = 6.dp.toPx(), center = center)
         }
 
-        // Center Digital Readout + Dynamic Descriptive Status
+        // Digital Value Inside Center Dial
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(top = 75.dp)
+            modifier = Modifier.padding(top = 70.dp)
         ) {
             Text(
-                text = "FLUX DENSITY",
-                color = TextMuted,
+                text = "${"%.1f".format(flux)}",
+                color = if (isAlert) AlertCrimson else TextPrimary,
+                fontSize = 42.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = "µT (MICROTESLA)",
+                color = if (isAlert) AlertCrimson else TextMuted,
                 fontSize = 10.sp,
                 fontFamily = FontFamily.Monospace,
                 fontWeight = FontWeight.Bold
             )
-            Row(verticalAlignment = Alignment.Bottom) {
-                Text(
-                    text = "%.1f".format(flux),
-                    color = if (isAlert) AlertCrimson else TextPrimary,
-                    fontSize = 44.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-                Text(
-                    text = "µT",
-                    color = AlertCrimson,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace,
-                    modifier = Modifier.padding(bottom = 6.dp, start = 2.dp)
-                )
-            }
-
-            // Descriptive Dynamic Status Badge
-            Box(
-                modifier = Modifier
-                    .padding(top = 4.dp)
-                    .background(
-                        color = statusColor.copy(alpha = 0.15f),
-                        shape = RoundedCornerShape(4.dp)
-                    )
-                    .border(
-                        width = 1.dp,
-                        color = statusColor,
-                        shape = RoundedCornerShape(4.dp)
-                    )
-                    .padding(horizontal = 8.dp, vertical = 2.dp)
-            ) {
-                Text(
-                    text = statusText,
-                    color = statusColor,
-                    fontSize = 10.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-            }
         }
     }
 }

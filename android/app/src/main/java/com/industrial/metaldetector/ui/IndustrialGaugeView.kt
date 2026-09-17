@@ -9,6 +9,7 @@ import kotlin.math.sin
 
 /**
  * Custom Android View for drawing the industrial dial gauge using hardware-accelerated Canvas.
+ * Renders combined magnetic flux density sqrt(x^2 + y^2 + z^2) in µT with dynamic status indicators.
  */
 class IndustrialGaugeView @JvmOverloads constructor(
     context: Context,
@@ -23,6 +24,12 @@ class IndustrialGaugeView @JvmOverloads constructor(
         }
 
     var threshold: Float = 70.0f
+        set(value) {
+            field = value
+            postInvalidateOnAnimation()
+        }
+
+    var isStudFinderMode: Boolean = false
         set(value) {
             field = value
             postInvalidateOnAnimation()
@@ -77,7 +84,7 @@ class IndustrialGaugeView @JvmOverloads constructor(
         color = Color.parseColor("#FFFFFF")
         textAlign = Paint.Align.CENTER
         typeface = Typeface.MONOSPACE
-        textSize = 68f
+        textSize = 64f
         isFakeBoldText = true
     }
 
@@ -85,7 +92,14 @@ class IndustrialGaugeView @JvmOverloads constructor(
         color = Color.parseColor("#FF3E3E")
         textAlign = Paint.Align.LEFT
         typeface = Typeface.MONOSPACE
-        textSize = 28f
+        textSize = 26f
+        isFakeBoldText = true
+    }
+
+    private val statusPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        textAlign = Paint.Align.CENTER
+        typeface = Typeface.MONOSPACE
+        textSize = 20f
         isFakeBoldText = true
     }
 
@@ -97,17 +111,19 @@ class IndustrialGaugeView @JvmOverloads constructor(
         val cx = width / 2f
         val cy = height / 2f
         val radius = (Math.min(width, height) / 2f) - 36f
+        val isAlert = currentFlux >= threshold
 
-        // Draw chassis and bezel
+        // 1. Draw chassis and bezel
+        bgPaint.color = if (isAlert) Color.parseColor("#1C0D10") else Color.parseColor("#15171D")
         canvas.drawCircle(cx, cy, radius + 20f, bgPaint)
-        bezelPaint.color = if (currentFlux >= threshold) Color.parseColor("#FF3E3E") else Color.parseColor("#252830")
+        bezelPaint.color = if (isAlert) Color.parseColor("#FF3E3E") else Color.parseColor("#252830")
         canvas.drawCircle(cx, cy, radius + 20f, bezelPaint)
 
-        // Draw Scale Arcs: 135 deg to 405 deg (270 degree sweep)
+        // 2. Draw Scale Arcs: 135 deg to 405 deg (270 degree sweep)
         arcBounds.set(cx - radius, cy - radius, cx + radius, cy + radius)
         canvas.drawArc(arcBounds, 135f, 270f, false, trackPaint)
 
-        // Normal zone: 40-50 µT
+        // Normal zone: 40-50 µT (ambient Earth background)
         val ambientStart = 135f + (40f / 200f) * 270f
         val ambientSweep = (10f / 200f) * 270f
         canvas.drawArc(arcBounds, ambientStart, ambientSweep, false, ambientPaint)
@@ -117,14 +133,14 @@ class IndustrialGaugeView @JvmOverloads constructor(
         val dangerSweep = ((200f - threshold) / 200f) * 270f
         canvas.drawArc(arcBounds, dangerStart, dangerSweep, false, dangerPaint)
 
-        // Draw Rotating Needle
+        // 3. Draw Rotating Needle
         val angleDeg = -135f + (currentFlux / 200f) * 270f
         val angleRad = Math.toRadians((angleDeg - 90).toDouble())
 
         val needleEndX = (cx + (radius - 10f) * cos(angleRad)).toFloat()
         val needleEndY = (cy + (radius - 10f) * sin(angleRad)).toFloat()
 
-        needlePaint.color = if (currentFlux >= threshold) Color.parseColor("#FF3E3E") else Color.parseColor("#FFFFFF")
+        needlePaint.color = if (isAlert) Color.parseColor("#FF3E3E") else Color.parseColor("#FFFFFF")
         canvas.drawLine(cx, cy, needleEndX, needleEndY, needlePaint)
 
         // Tip highlight
@@ -136,10 +152,26 @@ class IndustrialGaugeView @JvmOverloads constructor(
         canvas.drawCircle(cx, cy, 26f, trackPaint)
         canvas.drawCircle(cx, cy, 12f, needleTipPaint)
 
-        // Digital Flux text
-        textPaint.color = if (currentFlux >= threshold) Color.parseColor("#FF3E3E") else Color.parseColor("#FFFFFF")
+        // 4. Exact Numeric Readout
+        textPaint.color = if (isAlert) Color.parseColor("#FF3E3E") else Color.parseColor("#FFFFFF")
         val fluxStr = String.format("%.1f", currentFlux)
-        canvas.drawText(fluxStr, cx - 15f, cy + 90f, textPaint)
-        canvas.drawText("µT", cx + 75f, cy + 85f, unitPaint)
+        canvas.drawText(fluxStr, cx - 15f, cy + 85f, textPaint)
+        canvas.drawText("µT", cx + 75f, cy + 80f, unitPaint)
+
+        // 5. Dynamic Descriptive Status Indicator
+        val statusText = when {
+            isAlert && isStudFinderMode -> "STUD DETECTED!"
+            isAlert -> "METAL DETECTED!"
+            currentFlux in 40f..50f -> "NORMAL BACKGROUND"
+            currentFlux > 50f -> if (isStudFinderMode) "STUD IN PROXIMITY" else "ELEVATED FLUX"
+            else -> "LOW FIELD"
+        }
+        statusPaint.color = when {
+            isAlert -> Color.parseColor("#FF3E3E")
+            currentFlux in 40f..50f -> Color.parseColor("#00FF41")
+            currentFlux > 50f -> Color.parseColor("#FFA500")
+            else -> Color.parseColor("#6A6E7A")
+        }
+        canvas.drawText(statusText, cx, cy + 125f, statusPaint)
     }
 }

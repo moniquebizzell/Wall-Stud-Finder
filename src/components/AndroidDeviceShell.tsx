@@ -93,7 +93,7 @@ export const AndroidDeviceShell: React.FC<AndroidDeviceShellProps> = ({
         id="android-phone-frame"
         className={`relative transition-all duration-300 w-full flex flex-col ${
           isFramed
-            ? 'max-w-[430px] h-[920px] rounded-[52px] bg-[#0A0B0E] border-[10px] border-[#1C1F26] shadow-[0_0_80px_rgba(0,0,0,0.85),0_0_0_2px_#2E323D] overflow-hidden'
+            ? 'max-w-[440px] h-[min(920px,94vh)] rounded-[44px] bg-[#0A0B0E] border-[8px] border-[#1C1F26] shadow-[0_0_80px_rgba(0,0,0,0.85),0_0_0_2px_#2E323D] overflow-hidden my-auto'
             : 'max-w-xl min-h-screen bg-[#0A0B0E] border-x border-[#1C1F26]'
         }`}
       >
