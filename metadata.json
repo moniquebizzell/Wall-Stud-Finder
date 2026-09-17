@@ -1,0 +1,6 @@
+{
+  "name": "Metal Detector & Stud Finder",
+  "description": "Native Android metal detector and magnetic stud finder utility using the device's internal magnetometer (Sensor.TYPE_MAGNETIC_FIELD) with an industrial dial gauge, haptic vibration, and audio alerts.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
