@@ -1,6 +1,6 @@
 import React from 'react';
 import { AndroidTab } from './AndroidNavBar';
-import { Volume2, VolumeX, RotateCcw, Power, Cpu } from 'lucide-react';
+import { Volume2, VolumeX, RotateCcw, Power, Cpu, Rocket } from 'lucide-react';
 import { SensorStatus } from '../types';
 
 interface AndroidTopAppBarProps {
@@ -13,6 +13,7 @@ interface AndroidTopAppBarProps {
   isPaused: boolean;
   onTogglePause: () => void;
   sensorStatus: SensorStatus;
+  onOpenPlayModal?: () => void;
 }
 
 export const AndroidTopAppBar: React.FC<AndroidTopAppBarProps> = ({
@@ -25,6 +26,7 @@ export const AndroidTopAppBar: React.FC<AndroidTopAppBarProps> = ({
   isPaused,
   onTogglePause,
   sensorStatus,
+  onOpenPlayModal,
 }) => {
   const getTitle = () => {
     switch (activeTab) {
@@ -84,6 +86,19 @@ export const AndroidTopAppBar: React.FC<AndroidTopAppBarProps> = ({
 
       {/* Action Buttons */}
       <div className="flex items-center gap-1.5 shrink-0">
+        {/* Play Console Quick Launcher */}
+        {onOpenPlayModal && (
+          <button
+            id="appbar-play-console-btn"
+            onClick={onOpenPlayModal}
+            title="Google Play Console Deployment Assistant"
+            className="flex items-center gap-1 px-2 py-1 rounded-lg text-[10px] font-mono font-bold bg-[#3DDC84]/15 hover:bg-[#3DDC84]/25 text-[#3DDC84] border border-[#3DDC84]/40 transition-all cursor-pointer"
+          >
+            <Rocket className="w-3 h-3" />
+            <span className="hidden sm:inline">PLAY STORE</span>
+          </button>
+        )}
+
         {/* Tare / Zero Offset Button */}
         {activeTab !== 'settings' && (
           <button

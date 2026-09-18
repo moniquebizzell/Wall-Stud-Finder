@@ -9,7 +9,9 @@ import {
   Download,
   Info,
   ShieldCheck,
-  Power
+  Power,
+  Rocket,
+  ExternalLink
 } from 'lucide-react';
 import { soundManager } from '../utils/audio';
 import { hapticsManager } from '../utils/haptics';
@@ -25,6 +27,7 @@ interface SettingsViewProps {
   isPaused: boolean;
   onTogglePause: () => void;
   onOpenCodeModal: () => void;
+  onOpenPlayModal?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -37,6 +40,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   isPaused,
   onTogglePause,
   onOpenCodeModal,
+  onOpenPlayModal,
 }) => {
   const handleTestAlert = () => {
     soundManager.playBeep(980, 0.35);
@@ -177,6 +181,39 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <Power className="w-3.5 h-3.5" />
           <span>{isPaused ? 'Resume Sensor (registerListener)' : 'Pause Sensor (unregisterListener)'}</span>
         </button>
+      </div>
+
+      {/* Google Play Console Deployment Card */}
+      <div className="w-full max-w-md p-3.5 rounded-xl bg-gradient-to-br from-[#161B26] to-[#11141C] border border-[#2D364A] space-y-2.5 shadow-lg">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-lg bg-[#3DDC84]/20 border border-[#3DDC84]/40 flex items-center justify-center text-[#3DDC84]">
+              <Rocket className="w-3.5 h-3.5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold text-white tracking-wide">Google Play Console Release</div>
+              <div className="text-[10px] text-[#8E92A0]">Target SDK 35 • Android App Bundle (.aab)</div>
+            </div>
+          </div>
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-[#3DDC84]/15 text-[#3DDC84] border border-[#3DDC84]/30">
+            STORE READY
+          </span>
+        </div>
+
+        <p className="text-[11px] text-[#A0A4B4] leading-relaxed">
+          The native codebase is structured for Google Play submission with zero sensitive permissions, full offline privacy declarations, and ProGuard R8 optimization.
+        </p>
+
+        {onOpenPlayModal && (
+          <button
+            id="settings-open-play-modal-btn"
+            onClick={onOpenPlayModal}
+            className="w-full py-2.5 px-3 rounded-lg bg-[#3DDC84] hover:bg-[#32b86e] text-black font-bold text-xs flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
+          >
+            <Rocket className="w-4 h-4" />
+            <span>Launch Play Console Assistant</span>
+          </button>
+        )}
       </div>
 
       {/* 4. Native Kotlin Code & Export Project Buttons */}

@@ -9,6 +9,7 @@ import { FluxScopeView } from './components/FluxScopeView';
 import { SettingsView } from './components/SettingsView';
 import { AndroidCodeModal } from './components/AndroidCodeModal';
 import { AndroidPermissionModal } from './components/AndroidPermissionModal';
+import { GooglePlayModal } from './components/GooglePlayModal';
 import { useMagnetometer } from './hooks/useMagnetometer';
 import { soundManager } from './utils/audio';
 import {
@@ -27,6 +28,7 @@ export default function App() {
   const [hapticsEnabled, setHapticsEnabled] = useState<boolean>(true);
   const [hasInteractedAudio, setHasInteractedAudio] = useState<boolean>(false);
   const [isCodeModalOpen, setIsCodeModalOpen] = useState<boolean>(false);
+  const [isPlayModalOpen, setIsPlayModalOpen] = useState<boolean>(false);
   const [showPermissionModal, setShowPermissionModal] = useState<boolean>(false);
   const [currentTime, setCurrentTime] = useState<string>('09:41');
 
@@ -144,6 +146,7 @@ export default function App() {
           isPaused={isPaused}
           onTogglePause={togglePause}
           sensorStatus={sensorStatus}
+          onOpenPlayModal={() => setIsPlayModalOpen(true)}
         />
 
         {/* 3. Main Screen Viewport (Scrollable Content based on activeTab) */}
@@ -284,6 +287,7 @@ export default function App() {
               isPaused={isPaused}
               onTogglePause={togglePause}
               onOpenCodeModal={() => setIsCodeModalOpen(true)}
+              onOpenPlayModal={() => setIsPlayModalOpen(true)}
             />
           )}
         </div>
@@ -305,6 +309,12 @@ export default function App() {
       <AndroidCodeModal
         isOpen={isCodeModalOpen}
         onClose={() => setIsCodeModalOpen(false)}
+      />
+
+      {/* Google Play Console Deployment Assistant Modal */}
+      <GooglePlayModal
+        isOpen={isPlayModalOpen}
+        onClose={() => setIsPlayModalOpen(false)}
       />
 
       {/* Sensor Permission Dialog */}

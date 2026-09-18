@@ -872,5 +872,46 @@ A native Android utility utilizing the device's internal magnetometer (\`Sensor.
 1. Extract the downloaded ZIP or clone the repository.
 2. In Android Studio, select **File > Open** and choose this directory.
 3. Sync Gradle and click **Run (Shift+F10)** on a connected Android phone.`
+  },
+  {
+    path: 'PLAY_CONSOLE_GUIDE.md',
+    filename: 'PLAY_CONSOLE_GUIDE.md',
+    language: 'markdown',
+    description: 'Step-by-step guide to signing and uploading the App Bundle (.aab) to Google Play Console',
+    content: `# Google Play Console Publishing Guide
+## Industrial Metal Detector & Stud Finder (com.industrial.metaldetector)
+
+### 1. Generate Upload Keystore
+Run in terminal:
+\`\`\`bash
+keytool -genkey -v -keystore release.keystore -alias metaldetector -keyalg RSA -keysize 2048 -validity 10000
+\`\`\`
+
+### 2. Generate Signed Android App Bundle (.aab)
+\`\`\`bash
+./gradlew bundleRelease
+\`\`\`
+Output bundle:
+\`app/build/outputs/bundle/release/app-release.aab\`
+
+### 3. Google Play Console Setup
+- App Title: Industrial Metal Detector & Stud Finder
+- Category: Tools
+- Content Rating: Everyone
+- Data Safety: No user data collected or shared (100% offline, zero network permissions)
+- Target SDK: 35 (Android 15)`
+  },
+  {
+    path: 'app/proguard-rules.pro',
+    filename: 'proguard-rules.pro',
+    language: 'groovy',
+    description: 'ProGuard/R8 optimization rules for Jetpack Compose & SensorEventListener',
+    content: `-keep class androidx.compose.** { *; }
+-dontwarn androidx.compose.**
+-keepclassmembers class * implements android.hardware.SensorEventListener {
+    public void onSensorChanged(android.hardware.SensorEvent);
+    public void onAccuracyChanged(android.hardware.Sensor, int);
+}
+-keepattributes *Annotation*,InnerClasses,EnclosingMethod`
   }
 ];
