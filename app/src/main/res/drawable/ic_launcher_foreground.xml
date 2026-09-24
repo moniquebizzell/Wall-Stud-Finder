@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    
+    <!-- Outer Magnetic Field Wave Arcs (Safe zone 21..87, center 54,54) -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M 33,40 A 24,24 0 0,1 75,40" />
+    <path
+        android:strokeColor="#0EA5E9"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:pathData="M 39,46 A 16,16 0 0,1 69,46" />
+
+    <!-- Stud Finder Body Shell -->
+    <path
+        android:fillColor="#1E293B"
+        android:strokeColor="#64748B"
+        android:strokeWidth="2"
+        android:strokeLineJoin="round"
+        android:pathData="M 44,52 L 64,52 L 67,76 C 67,79 64,81 61,81 L 47,81 C 44,81 41,79 41,76 Z" />
+
+    <!-- Top Sensor Probe Nose / Stud Beam Notch -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M 50,48 L 58,48 L 56,52 L 52,52 Z" />
+
+    <!-- Center Laser / Stud Target Reticle / LED Meter -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M 54,60 m -4,0 a 4,4 0 1,0 8,0 a 4,4 0 1,0 -8,0" />
+    <path
+        android:fillColor="#FBBF24"
+        android:pathData="M 52,66 L 56,66 L 56,68 L 52,68 Z" />
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M 50,71 L 58,71 L 58,73 L 50,73 Z" />
+
+    <!-- Left & Right Wall Grip accents -->
+    <path
+        android:strokeColor="#94A3B8"
+        android:strokeWidth="1.5"
+        android:strokeLineCap="round"
+        android:pathData="M 43,62 L 43,72 M 65,62 L 65,72" />
+
+    <!-- Magnetic North / South Indicator Poles -->
+    <path
+        android:fillColor="#EF4444"
+        android:pathData="M 30,55 L 34,55 L 34,65 L 30,65 Z" />
+    <path
+        android:fillColor="#38BDF8"
+        android:pathData="M 74,55 L 78,55 L 78,65 L 74,65 Z" />
+</vector>
